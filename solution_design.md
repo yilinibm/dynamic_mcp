@@ -617,3 +617,58 @@ sequenceDiagram
 - DbRefresher 每 1s 调用 findChangedSince()，如有变更则重建快照：
   - 读取 findAllEnabled() 全量 -> 映射为 ToolConfig -> registry.replace(newSnap)
 - 代码关键位置参考：src/main/java/com/example/mcp/infra/db/ToolRepository.java 与 src/main/java/com/example/mcp/core/config/DbRefresher.java
+
+
+## 附录C：MCP WebSocket + JSON-RPC 适配（新增）
+- 端点：ws://<host>:<port>/mcp/ws（Spring WebFlux WebSocket）
+- 协议：JSON-RPC 2.0
+- 支持方法：
+  - initialize
+  - tools/list
+  - tools/call
+- 关键实现：
+  - McpWebSocketHandler：解析 JSON-RPC 请求，路由到工具注册表/执行器，非阻塞返回
+  - WebSocketConfig：注册 /mcp/ws 映射
+
+请求/响应示例：
+- initialize
+  请求：
+  {"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}
+  响应：
+  {"jsonrpc":"2.0","id":1,"result":{"serverInfo":{"name":"mcp-lite-java","version":"0.1.0"},"capabilities":{"tools":true}}}
+
+- tools/list
+  请求：
+  {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+  响应：
+  {"jsonrpc":"2.0","id":2,"result":{"tools":[{"name":"weather.search","description":"...","inputSchema":{...}}]}}
+
+- tools/call
+  请求：
+  {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"tool":"weather.search","arguments":{"city":"Shanghai"}}}
+  响应（成功）：
+  {"jsonrpc":"2.0","id":3,"result":{"content":{ /* 外部 HTTP 返回 JSON */ }}}
+  响应（失败）：
+  {"jsonrpc":"2.0","id":3,"error":{"code":-32000,"message":"<错误信息>"}}
+
+错误码约定：
+- -32700 Parse error；-32601 Method not found；-32603 Internal error
+- -32000…-32099 用于工具调用等服务端自定义错误
+
+## 附录D：动态下线立即生效（新增）
+- Admin 接口：
+  - POST /admin/tools：写库后调用 refreshNow()，注册表快照立即更新
+  - DELETE /admin/tools/{name}：enabled=false 后调用 refreshNow()，下线即时生效
+- DbRefresher.refreshNow()：强制重建快照（跳过增量条件判断）
+
+## 附录E：推荐测试流程（调整）
+1) 先查询 tools/list（应为空或无目标工具）
+2) 动态注册（POST /admin/tools）
+3) 再查 tools/list（应出现新工具）
+4) 调用 tools/call（应 ok=true 并返回外部响应）
+5) 下线（DELETE /admin/tools/{name}）
+6) 立即再查 tools/list（应反映最新快照；执行将返回 NOT_FOUND 或不可调用）
+7) 重新上线（POST /admin/tools，enabled=true）
+8) 再查 tools/list
+
+注：等价的 WebSocket JSON-RPC 测试可用 /mcp/ws 端点，方法与请求体如上示例。

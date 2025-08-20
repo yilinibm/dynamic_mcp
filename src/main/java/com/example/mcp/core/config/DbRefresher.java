@@ -29,12 +29,16 @@ public class DbRefresher {
         this.registry = registry;
     }
 
-    @Scheduled(fixedDelayString = "${app.db-refresh-interval-ms:1000}")
-    public void refresh() {
-        List<ToolRow> changed = repo.findChangedSince(lastSeen);
-        if (changed.isEmpty()) return;
+    public void refreshNow() { doRefresh(true); }
 
-        // Load all enabled to rebuild full snapshot (简单做法，便于一致性)
+    @Scheduled(fixedDelayString = "${app.db-refresh-interval-ms:1000}")
+    public void refresh() { doRefresh(false); }
+
+    private void doRefresh(boolean force) {
+        List<ToolRow> changed = force ? repo.findAllEnabled() : repo.findChangedSince(lastSeen);
+        if (changed.isEmpty() && !force) return;
+
+        // Load all enabled to rebuild full snapshot（简单做法，便于一致性）
         List<ToolRow> all = repo.findAllEnabled();
         Map<String, ToolHandle> snap = new HashMap<>();
         for (ToolRow r : all) {
@@ -56,9 +60,7 @@ public class DbRefresher {
                 // skip bad row; keep old snapshot
             }
         }
-        if (!snap.isEmpty()) {
-            registry.replace(snap);
-        }
+        registry.replace(snap);
     }
 }
 
