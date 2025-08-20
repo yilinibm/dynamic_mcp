@@ -1,0 +1,14 @@
+com/example/mcp/core/config/DbRefresher.class
+com/example/mcp/core/executor/TemplateEngine.class
+com/example/mcp/adapter/mcp/McpController$CallReq.class
+com/example/mcp/core/registry/ToolConfig.class
+com/example/mcp/adapter/admin/AdminController$UpsertReq.class
+com/example/mcp/infra/db/ToolRepository.class
+com/example/mcp/infra/db/ToolRow.class
+com/example/mcp/core/registry/ToolRegistry.class
+com/example/mcp/adapter/admin/AdminController.class
+com/example/mcp/core/executor/ToolExecutor.class
+com/example/mcp/McpServerApplication.class
+com/example/mcp/infra/db/ToolRepository$1.class
+com/example/mcp/adapter/mcp/McpController.class
+com/example/mcp/core/registry/ToolHandle.class

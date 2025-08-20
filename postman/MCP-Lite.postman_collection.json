@@ -1,0 +1,60 @@
+{
+  "info": {
+    "name": "MCP-Lite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List Tools",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{host}}/mcp/tools",
+          "host": ["{{host}}"],
+          "path": ["mcp", "tools"]
+        }
+      }
+    },
+    {
+      "name": "Register Weather Tool",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"weather.search\",\n  \"enabled\": true,\n  \"configJson\": {\n    \"name\": \"weather.search\",\n    \"description\": \"查询天气（echo 测试）\",\n    \"type\": \"http\",\n    \"inputSchema\": {\n      \"type\": \"object\",\n      \"required\": [\"city\"],\n      \"properties\": { \"city\": { \"type\": \"string\" } }\n    },\n    \"http\": {\n      \"method\": \"GET\",\n      \"url\": \"https://postman-echo.com/get\",\n      \"query\": { \"q\": \"{{args.city}}\" },\n      \"headers\": { \"X-Demo\": \"mcp-lite\" },\n      \"timeoutMs\": 3000\n    }\n  }\n}"
+        },
+        "url": {
+          "raw": "{{host}}/admin/tools",
+          "host": ["{{host}}"],
+          "path": ["admin", "tools"]
+        }
+      }
+    },
+    {
+      "name": "Call Weather Tool",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key":"Content-Type","value":"application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tool\": \"weather.search\",\n  \"arguments\": { \"city\": \"Shanghai\" }\n}"
+        },
+        "url": {
+          "raw": "{{host}}/mcp/tools/call",
+          "host": ["{{host}}"],
+          "path": ["mcp", "tools", "call"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "host", "value": "http://localhost:8080" }
+  ]
+}
+
