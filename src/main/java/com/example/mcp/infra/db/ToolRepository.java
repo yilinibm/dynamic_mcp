@@ -49,6 +49,11 @@ public class ToolRepository {
         }
     }
 
+    public void setEnabled(String name, boolean enabled) {
+        jdbc.update("UPDATE mcp_tool SET enabled=?, updated_at=CURRENT_TIMESTAMP WHERE name=?",
+                enabled ? 1 : 0, name);
+    }
+
     public ToolRow findByName(String name) {
         List<ToolRow> list = jdbc.query("SELECT id,name,enabled,config_json,updated_at FROM mcp_tool WHERE name=?",
                 ps -> ps.setString(1, name), MAPPER);

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.*;
 
@@ -30,12 +31,12 @@ public class McpController {
     public record CallReq(String tool, JsonNode arguments) {}
 
     @PostMapping("/tools/call")
-    public Map<String, Object> call(@RequestBody CallReq req) {
+    public Mono<Map<String, Object>> call(@RequestBody CallReq req) {
         Optional<ToolHandle> h = registry.get(req.tool());
         if (h.isEmpty()) {
-            return error("NOT_FOUND", "Tool not found: " + req.tool());
+            return Mono.just(error("NOT_FOUND", "Tool not found: " + req.tool()));
         }
-        return executor.execute(h.get(), req.arguments());
+        return executor.executeReactive(h.get(), req.arguments());
     }
 
     private Map<String, Object> error(String code, String message) {

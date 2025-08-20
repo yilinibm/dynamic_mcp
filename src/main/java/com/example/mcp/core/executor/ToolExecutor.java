@@ -9,6 +9,7 @@ import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
 import java.nio.charset.StandardCharsets;
@@ -25,20 +26,22 @@ public class ToolExecutor {
     private final ObjectMapper om = new ObjectMapper();
     private final TemplateEngine tpl = new TemplateEngine();
 
-    public Map<String, Object> execute(ToolHandle handle, JsonNode args) {
+    public Mono<Map<String, Object>> executeReactive(ToolHandle handle, JsonNode args) {
         String type = handle.config().type();
         try {
             return switch (type) {
-                case "http" -> execHttp(handle, args);
-                case "feign" -> execFeign(handle, args);
-                default -> error("UNSUPPORTED_TYPE", "Unsupported type: " + type);
+                case "http" -> execHttpReactive(handle, args);
+                case "feign" -> Mono.fromCallable(() -> execFeign(handle, args))
+                        .subscribeOn(reactor.core.scheduler.Schedulers.boundedElastic())
+                        .onErrorResume(e -> Mono.just(error("INTERNAL", e.getMessage())));
+                default -> Mono.just(error("UNSUPPORTED_TYPE", "Unsupported type: " + type));
             };
         } catch (Exception e) {
-            return error("INTERNAL", e.getMessage());
+            return Mono.just(error("INTERNAL", e.getMessage()));
         }
     }
 
-    private Map<String, Object> execHttp(ToolHandle handle, JsonNode args) throws Exception {
+    private Mono<Map<String, Object>> execHttpReactive(ToolHandle handle, JsonNode args) throws Exception {
         JsonNode http = handle.config().http();
         String method = http.path("method").asText("GET");
         String urlTpl = http.path("url").asText();
@@ -87,11 +90,16 @@ public class ToolExecutor {
             reqSpec = bodySpec;
         }
 
-        String resp = reqSpec.retrieve().bodyToMono(String.class).block(Duration.ofMillis(timeoutMs + 500L));
-        Map<String, Object> ok = new LinkedHashMap<>();
-        ok.put("ok", true);
-        ok.put("result", om.readTree(resp));
-        return ok;
+        return reqSpec.retrieve()
+                .bodyToMono(String.class)
+                .timeout(Duration.ofMillis(timeoutMs + 1000L))
+                .flatMap(resp -> Mono.fromCallable(() -> {
+                    Map<String, Object> ok = new LinkedHashMap<>();
+                    ok.put("ok", true);
+                    ok.put("result", om.readTree(resp));
+                    return ok;
+                }))
+                .onErrorResume(e -> Mono.just(error("INTERNAL", e.getMessage())));
     }
 
     private Map<String, Object> execFeign(ToolHandle handle, JsonNode args) throws Exception {

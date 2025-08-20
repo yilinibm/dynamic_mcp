@@ -23,5 +23,11 @@ public class AdminController {
         repo.upsert(req.name(), req.enabled(), req.configJson().toString());
         return Map.of("ok", true);
     }
+
+    @DeleteMapping("/tools/{name}")
+    public Map<String, Object> disable(@PathVariable("name") String name) {
+        repo.setEnabled(name, false);
+        return Map.of("ok", true);
+    }
 }
 
